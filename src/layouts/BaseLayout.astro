@@ -38,37 +38,55 @@ const {
 
       header.site-header {
         padding: 1.2rem 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         max-width: 960px;
         margin: 0 auto;
+        
+        /* ここを追加 */
+        margin-top: 2rem;
+
+        position: relative;
+        height: 64px;
+        display: flex;
+        align-items: center;
       }
 
+      /* 中央ロゴ */
       .site-title-link {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
         text-decoration: none;
-        color: #222;
       }
 
-      .site-title {
-        margin: 0;
-        font-size: 1.2rem;
-        letter-spacing: 0.15em;
-        transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+      .site-logo {
+        height: 168px; /* 好みで調整 */
+        width: auto;
+        display: block;
+        opacity: 0.92;
+        transition: opacity 0.2s ease, transform 0.2s ease;
       }
 
-      .site-title-link:hover .site-title {
-        color: #777;
-        opacity: 0.85;
+      .site-title-link:hover .site-logo {
+        opacity: 0.8;
         transform: translateY(-1px);
+      }
+
+      /* 右上About */
+      nav.site-nav {
+        position: absolute;
+        right: 1.5rem;
+        top: 1.2rem;
       }
 
       nav.site-nav a {
         text-decoration: none;
         color: #666;
-        font-size: 0.9rem;
+        font-size: 1.3rem; /* さっきの調整を維持するならこれ */
         margin-left: 1rem;
         position: relative;
+        transition: color 0.2s ease;
       }
 
       nav.site-nav a:hover {
@@ -90,21 +108,28 @@ const {
         width: 100%;
       }
 
+      /* スマホ調整 */
+      @media (max-width: 600px) {
+        header.site-header {
+          height: 80px;
+          padding: 1rem 1.2rem;
+
+          margin-top: 2rem;
+        }
+        nav.site-nav {
+          right: 1.2rem;
+          top: 1rem;
+        }
+        .site-logo {
+          height: 52px;
+        }
+      }
+
       main.page-main {
         max-width: 960px;
         margin: 0 auto;
         padding: 2rem 1.5rem 3rem;
         text-align: center;
-      }
-
-      @media (max-width: 600px) {
-        header.site-header {
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-        nav.site-nav a {
-          margin-left: 0.6rem;
-        }
       }
 
       /* 背景キャンバス用 */
@@ -120,8 +145,8 @@ const {
     {showCanvas && <div id="canvas-container"></div>}
 
     <header class="site-header">
-      <a href="/" class="site-title-link">
-        <h1 class="site-title">KoLLOID</h1>
+      <a href="/" class="site-title-link" aria-label="KoLLOID">
+        <img class="site-logo" src="/logo.png" alt="KoLLOID" />
       </a>
       <nav class="site-nav">
         <a href="/about">About</a>

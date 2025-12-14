@@ -111,20 +111,33 @@ const {
       /* スマホ調整 */
       @media (max-width: 600px) {
         header.site-header {
-          height: 80px;
-          padding: 1rem 1.2rem;
+          height: auto;              /* 高さ固定を解除 */
+          padding: 1.5rem 1.2rem 1rem;
           margin-top: 2rem;
+          flex-direction: column;    /* 縦並び */
+          align-items: center;
         }
-        nav.site-nav {
-          right: 1.2rem;
-          top: 1rem;
+
+        /* ロゴは中央のまま */
+        .site-title-link {
+          position: static;          /* absolute を解除 */
+          transform: none;
+          margin-bottom: 0.5rem;     /* ロゴと nav の間隔 */
         }
-        nav.site-nav a {
-          font-size: 1.1rem;
-          margin-left: 0.6rem;
-        }
+
         .site-logo {
-          height: 78px;
+          height: 84px;              /* スマホ用ロゴサイズ */
+        }
+
+        /* nav をロゴの下・中央へ */
+        nav.site-nav {
+          position: static;          /* absolute を解除 */
+          margin-top: 0.4rem;
+        }
+
+        nav.site-nav a {
+          font-size: 1.2rem;
+          margin-left: 0;            /* 横並び前提を解除 */
         }
       }
 

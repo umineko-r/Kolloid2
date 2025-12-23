@@ -5,6 +5,7 @@
 //
 // ★重要：enableLinks は「起動時固定」ではなく、bodyのdata属性を毎回参照して強制的に反映する
 //        これにより、もし p5 がページ遷移で生き残っても About/Statement では確実にリンクOFFになる。
+console.log("[kolloid] particles.js loaded v=20251223-1");
 
 function toDate(value) {
   if (!value) return null;

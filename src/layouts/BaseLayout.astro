@@ -33,6 +33,7 @@ const {
     )}
 
     <style>
+      /* （CSSはそのまま） */
       body {
         margin: 0;
         min-height: 100vh;
@@ -53,7 +54,6 @@ const {
         align-items: center;
       }
 
-      /* 中央ロゴ */
       .site-title-link {
         position: absolute;
         left: 50%;
@@ -110,7 +110,6 @@ const {
         width: 100%;
       }
 
-      /* スマホ調整 */
       @media (max-width: 600px) {
         header.site-header {
           height: auto;
@@ -164,10 +163,7 @@ const {
     </style>
   </head>
 
-  <body
-    data-show-canvas={showCanvas}
-    data-enable-links={enableLinks}
-  >
+  <body data-show-canvas={showCanvas} data-enable-links={enableLinks}>
     {showCanvas && <div id="canvas-container"></div>}
 
     <header class="site-header">
@@ -178,7 +174,6 @@ const {
       <nav class="site-nav">
         <a href="/about">About</a>
         <a href="/statement">Statement</a>
-        {/* 将来ここに /contributors などを追加 */}
         {/* <a href="/contributors">Contributors</a> */}
       </nav>
     </header>
@@ -187,33 +182,58 @@ const {
       <slot />
     </main>
 
-    <footer class="site-footer">
-      © KoLLOID, 2025–
-    </footer>
+    <footer class="site-footer">© KoLLOID, 2025–</footer>
 
-    {showCanvas && (
-      <script type="module" is:inline>
-        import { createKolloidSketch } from "/js/kolloid-particles.js";
+    {/* ★ script は常に出す（showCanvas=false のページでも destroy できるように） */}
+    <script type="module" is:inline>
+      import { createKolloidSketch } from "/js/kolloid-particles.js";
 
+      function getFlags() {
         const root = document.body;
         const showCanvas = root.dataset.showCanvas === "true";
         const enableLinks = root.dataset.enableLinks === "true";
+        return { showCanvas, enableLinks };
+      }
 
-        let p5Instance = null;
-
-        if (showCanvas) {
-          window.addEventListener("DOMContentLoaded", () => {
-            // ★ 既存インスタンスがあれば破棄
-            if (window.__kolloidP5__) {
-              window.__kolloidP5__.remove();
-              window.__kolloidP5__ = null;
-            }
-
-            p5Instance = new p5(createKolloidSketch({ enableLinks }));
-            window.__kolloidP5__ = p5Instance;
-          });
+      function destroySketch() {
+        if (window.__kolloidP5__) {
+          try {
+            window.__kolloidP5__.remove();
+          } catch (e) {
+            console.warn("p5 remove failed:", e);
+          }
+          window.__kolloidP5__ = null;
         }
-      </script>
-    )}
+
+        const container = document.getElementById("canvas-container");
+        if (container) container.innerHTML = "";
+      }
+
+      function initSketch() {
+        const { showCanvas, enableLinks } = getFlags();
+
+        // まず掃除
+        destroySketch();
+
+        // キャンバスを出さないページはここで終わり
+        if (!showCanvas) return;
+
+        // p5 がロードされていない場合は何もしない（安全策）
+        if (!window.p5) {
+          console.warn("p5 is not loaded (showCanvas=true).");
+          return;
+        }
+
+        window.__kolloidP5__ = new p5(createKolloidSketch({ enableLinks }));
+      }
+
+      // フルロード
+      window.addEventListener("DOMContentLoaded", initSketch);
+
+      // Astro の遷移
+      document.addEventListener("astro:before-swap", destroySketch);
+      document.addEventListener("astro:after-swap", initSketch);
+      document.addEventListener("astro:page-load", initSketch);
+    </script>
   </body>
 </html>

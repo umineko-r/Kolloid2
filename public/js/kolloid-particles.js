@@ -2,6 +2,9 @@
 // 更新情報JSONを読み込み、粒子として表示する版（自動cap対応）
 // - enableLinks=true: JSON粒子（リンク/hoverあり）
 // - enableLinks=false: ダミー粒子（リンク/hoverなし）
+//
+// ★重要：enableLinks は「起動時固定」ではなく、bodyのdata属性を毎回参照して強制的に反映する
+//        これにより、もし p5 がページ遷移で生き残っても About/Statement では確実にリンクOFFになる。
 
 function toDate(value) {
   if (!value) return null;
@@ -69,9 +72,7 @@ function selectItems(allItems, opts) {
   const now = new Date();
   const cutoff = new Date(now.getTime() - recentDays * 24 * 60 * 60 * 1000);
 
-  const recentPool = items.filter(
-    (it) => it._updatedAt && it._updatedAt >= cutoff
-  );
+  const recentPool = items.filter((it) => it._updatedAt && it._updatedAt >= cutoff);
 
   const sortedByNew = [...items].sort((a, b) => {
     const ta = a._updatedAt ? a._updatedAt.getTime() : 0;
@@ -92,7 +93,7 @@ function selectItems(allItems, opts) {
   const remaining = items.filter((x) => !pickedKeys.has(x._key));
   const randomCount = Math.max(0, totalCount - newPicked.length);
 
-  // ★ 自動 cap 計算
+  // 自動 cap 計算
   const autoCap = clamp(Math.floor(randomCount / contributors), 2, 5);
 
   function pickWithCap(candidates, want, cap) {
@@ -137,8 +138,14 @@ function targetCount() {
   return 56;
 }
 
+// ★ここが肝：今この瞬間にリンクが許可されているかを毎回読む
+function isLinksEnabled() {
+  return document.body?.dataset?.enableLinks === "true";
+}
+
 export function createKolloidSketch(options = {}) {
-  const { enableLinks = false } = options;
+  // 起動時の値も受け取るが、実際の挙動は isLinksEnabled() を優先する
+  const { enableLinks: initialEnableLinks = false } = options;
 
   return (p) => {
     const particles = [];
@@ -278,7 +285,9 @@ export function createKolloidSketch(options = {}) {
       canvas.parent(container);
       p.frameRate(30);
 
-      if (enableLinks) {
+      // 起動時点で enableLinks が true ならデータ粒子、falseならダミー
+      // ただし、後から isLinksEnabled() が false になっても挙動は止める
+      if (initialEnableLinks) {
         loadItems()
           .then((data) => {
             items = data;
@@ -286,7 +295,7 @@ export function createKolloidSketch(options = {}) {
           })
           .catch((e) => {
             console.error(e);
-            buildDummyParticles(); // 失敗時はダミーで埋める
+            buildDummyParticles();
           });
       } else {
         buildDummyParticles();
@@ -295,16 +304,14 @@ export function createKolloidSketch(options = {}) {
 
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
-      // ページ種別に応じて再構築
-      if (enableLinks) {
-        rebuildDataParticles();
-      } else {
-        buildDummyParticles();
-      }
+      // 形だけは維持
+      if (initialEnableLinks) rebuildDataParticles();
+      else buildDummyParticles();
     };
 
     p.mouseMoved = () => {
-      if (!enableLinks) {
+      // ★ここで毎回判定（これで About/Statement では確実に無効化される）
+      if (!isLinksEnabled()) {
         hovered = null;
         p.cursor("default");
         return;
@@ -321,7 +328,7 @@ export function createKolloidSketch(options = {}) {
     };
 
     p.mouseClicked = () => {
-      if (!enableLinks) return;
+      if (!isLinksEnabled()) return;
       const url = hovered?.item?.link;
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     };
@@ -333,8 +340,8 @@ export function createKolloidSketch(options = {}) {
       for (let i = 0; i < 3; i++) resolveOverlaps();
       for (const ptl of particles) ptl.draw();
 
-      // ツールチップはリンク有効時のみ
-      if (enableLinks && hovered?.item) drawTooltip(hovered.item);
+      // ★ツールチップも毎回判定
+      if (isLinksEnabled() && hovered?.item) drawTooltip(hovered.item);
     };
   };
 }

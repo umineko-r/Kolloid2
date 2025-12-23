@@ -162,7 +162,8 @@ export function createKolloidSketch(options = {}) {
       reset(first = false) {
         this.x = p.random(p.width);
         this.y = p.random(p.height);
-        this.r = p.random(10, 40);
+        const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+        this.r = isTouch ? p.random(16, 46) : p.random(10, 40);
         this.vx = p.random(-0.3, 0.3);
         this.vy = p.random(-0.3, 0.3);
         this.alpha = p.random(60, 120);
@@ -195,7 +196,16 @@ export function createKolloidSketch(options = {}) {
       hitTest(mx, my) {
         const dx = mx - this.x;
         const dy = my - this.y;
-        return Math.sqrt(dx * dx + dy * dy) <= this.r;
+
+        // タッチ端末は当たり判定を広げる（指サイズ対策）
+        const isTouch =
+          "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+        // 最低でも 26px くらいは欲しい（指が乗る面積）
+        const extra = isTouch ? 18 : 0;
+
+        const rr = this.r + extra;
+        return dx * dx + dy * dy <= rr * rr;
       }
     }
 
@@ -332,6 +342,32 @@ export function createKolloidSketch(options = {}) {
       if (!isLinksEnabled()) return;
       const url = hovered?.item?.link;
       if (url) window.open(url, "_blank", "noopener,noreferrer");
+    };
+        
+    p.touchStarted = () => {
+      // 画面スクロールを邪魔しないため、リンクOFFなら何もしない
+      if (!isLinksEnabled()) return true;
+
+      // タップ地点（touches[0]）で判定
+      const t = p.touches && p.touches[0];
+      const mx = t ? t.x : p.mouseX;
+      const my = t ? t.y : p.mouseY;
+
+      let hit = null;
+      for (let i = particles.length - 1; i >= 0; i--) {
+        if (particles[i].hitTest(mx, my)) {
+          hit = particles[i];
+          break;
+        }
+      }
+
+      const url = hit?.item?.link;
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return false; // ★タップイベント消費（誤作動防止）
+      }
+
+      return true;
     };
 
     p.draw = () => {

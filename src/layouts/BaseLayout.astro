@@ -152,6 +152,14 @@ const {
         inset: 0;
         z-index: -1;
       }
+      
+      .site-footer {
+        margin-top: 3rem;
+        padding: 1.5rem 0 2rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #777;
+      }
     </style>
   </head>
 
@@ -173,6 +181,10 @@ const {
     <main class="page-main">
       <slot />
     </main>
+
+    <footer class="site-footer">
+      © KoLLOID, 2025–
+    </footer>
 
     {showCanvas && (
     <script type="module" is:inline>

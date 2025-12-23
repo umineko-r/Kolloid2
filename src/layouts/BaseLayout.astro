@@ -199,9 +199,18 @@ const {
         const showCanvas = root.dataset.showCanvas === "true";
         const enableLinks = root.dataset.enableLinks === "true";
 
+        let p5Instance = null;
+
         if (showCanvas) {
           window.addEventListener("DOMContentLoaded", () => {
-            new p5(createKolloidSketch({ enableLinks }));
+            // ★ 既存インスタンスがあれば破棄
+            if (window.__kolloidP5__) {
+              window.__kolloidP5__.remove();
+              window.__kolloidP5__ = null;
+            }
+
+            p5Instance = new p5(createKolloidSketch({ enableLinks }));
+            window.__kolloidP5__ = p5Instance;
           });
         }
       </script>

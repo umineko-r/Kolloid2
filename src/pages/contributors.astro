@@ -1,15 +1,44 @@
 ---
-// src/pages/contributors.astro
 import BaseLayout from "../layouts/BaseLayout.astro";
-import contributors from "../data/contributors.json";
+import contributorsRaw from "../data/contributors.json";
 
+type Contributor = {
+  displayName?: string;
+  links?: { [key: string]: string };
+};
+
+type ContributorsMap = {
+  [id: string]: Contributor;
+};
+
+const contributors = contributorsRaw as ContributorsMap;
 const pageTitle = "Contributors | KoLLOID";
 
-const list = Object.entries(contributors).map(([id, c]) => ({
-  id,
-  displayName: c.displayName ?? id,
-  links: c.links ?? {},
-}));
+/** 1) まずキー数を数える（配列メソッド不使用） */
+let n = 0;
+for (const id in contributors) {
+  if (contributors[id]) n++;
+}
+
+/** 2) 固定長の配列を作って index 代入（push 不使用） */
+const list: {
+  id: string;
+  displayName: string;
+  links: { [key: string]: string };
+}[] = new Array(n);
+
+let i = 0;
+for (const id in contributors) {
+  const c = contributors[id];
+  if (!c) continue;
+
+  list[i] = {
+    id,
+    displayName: c.displayName ?? id,
+    links: c.links ?? {},
+  };
+  i++;
+}
 ---
 
 <BaseLayout pageTitle={pageTitle} enableLinks={false} showCanvas={true}>
@@ -21,7 +50,6 @@ const list = Object.entries(contributors).map(([id, c]) => ({
         <li style="padding:0.9rem 0; border-bottom:1px solid rgba(0,0,0,0.08);">
           <div style="font-size:1.05rem;">
             <strong>{c.displayName}</strong>
-            <span style="color:#888; margin-left:0.6rem; font-size:0.9rem;">@{c.id}</span>
           </div>
 
           <div style="margin-top:0.35rem; font-size:0.95rem;">

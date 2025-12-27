@@ -9,6 +9,14 @@ type Contributor = {
 };
 
 const entries = Object.entries(contributors) as [string, Contributor][];
+
+// ★リンク表示名の変換表
+const LINK_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  youtube: "YouTube",
+  note: "note",
+  facebook:"Facebook",
+};
 ---
 
 <BaseLayout pageTitle="Contributors | KoLLOID" enableLinks={false}>
@@ -27,29 +35,31 @@ const entries = Object.entries(contributors) as [string, Contributor][];
           {c.displayName}
         </h3>
 
-        {/* ★ジャンル */}
+        {/* ジャンル */}
         {c.genres && (
-          <p style="font-size: 0.9rem; color: #555;">
-            ジャンル：
-            {c.genres.join("・")}
+          <p style="font-size: 0.9rem; color: #555; margin: 0.3rem 0;">
+            ジャンル：{c.genres.join("・")}
           </p>
         )}
 
-        {/* ★リンク */}
+        {/* リンク */}
         {c.links && (
           <ul style="margin-top: 0.6rem; padding-left: 1.2rem;">
-            {Object.entries(c.links).map(([key, url]) => (
-              <li>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style="color:#444; text-decoration:underline;"
-                >
-                  {key}
-                </a>
-              </li>
-            ))}
+            {Object.entries(c.links).map(([key, url]) => {
+              const label = LINK_LABELS[key] ?? key;
+              return (
+                <li>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="color:#444; text-decoration:underline;"
+                  >
+                    {key}（{label}）
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

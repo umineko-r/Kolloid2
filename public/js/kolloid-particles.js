@@ -6,7 +6,7 @@
 //
 // ★重要：enableLinks は「起動時固定」ではなく、bodyのdata属性を毎回参照して強制的に反映する
 //        これにより、もし p5 がページ遷移で生き残っても About/Statement では確実にリンクOFFになる。
-console.log("[kolloid] particles.js loaded v=20251227-1");
+console.log("[kolloid] particles.js loaded v=20251227-3");
 
 function toDate(value) {
   if (!value) return null;
@@ -26,6 +26,31 @@ function clamp(x, min, max) {
   return Math.max(min, Math.min(max, x));
 }
 
+function targetCount() {
+  const w = window.innerWidth;
+  if (w <= 600) return 32;
+  if (w <= 1024) return 44;
+  return 56;
+}
+
+// ★ここが肝：今この瞬間にリンクが許可されているかを毎回読む
+function isLinksEnabled() {
+  return document.body?.dataset?.enableLinks === "true";
+}
+
+function isTouchDevice() {
+  return "ontouchstart" in window || navigator.maxTouchPoints > 0;
+}
+
+/**
+ * ★ contributors.json は { [id]: { displayName, links... } } 形式
+ * particles.json は contributor にID（例: "umineko"）を入れる
+ * 表示時だけ displayName に変換する
+ */
+function getContributorDisplayName(contributorId, contributorsMap) {
+  return contributorsMap?.[contributorId]?.displayName ?? contributorId;
+}
+
 function selectItems(allItems, opts) {
   const {
     totalCount,
@@ -40,7 +65,6 @@ function selectItems(allItems, opts) {
       _updatedAt: toDate(it.updatedAt),
       _key: it.id || it.link,
     }))
-    // ★ creator -> contributor
     .filter((it) => it.contributor && it.title && it.link && it._key);
 
   if (normalized.length === 0) return [];
@@ -68,16 +92,14 @@ function selectItems(allItems, opts) {
 
   const items = [...nonIg, ...igCapped];
 
-  // Contributors 数 M
+  // Contributors 数 M（IDで数える）
   const contributors = new Set(items.map((x) => x.contributor)).size || 1;
 
   // 新しめ候補
   const now = new Date();
   const cutoff = new Date(now.getTime() - recentDays * 24 * 60 * 60 * 1000);
 
-  const recentPool = items.filter(
-    (it) => it._updatedAt && it._updatedAt >= cutoff
-  );
+  const recentPool = items.filter((it) => it._updatedAt && it._updatedAt >= cutoff);
 
   const sortedByNew = [...items].sort((a, b) => {
     const ta = a._updatedAt ? a._updatedAt.getTime() : 0;
@@ -136,25 +158,12 @@ function selectItems(allItems, opts) {
   return final;
 }
 
-function targetCount() {
-  const w = window.innerWidth;
-  if (w <= 600) return 32;
-  if (w <= 1024) return 44;
-  return 56;
-}
-
-// ★ここが肝：今この瞬間にリンクが許可されているかを毎回読む
-function isLinksEnabled() {
-  return document.body?.dataset?.enableLinks === "true";
-}
-
-function isTouchDevice() {
-  return "ontouchstart" in window || navigator.maxTouchPoints > 0;
-}
-
 export function createKolloidSketch(options = {}) {
   // 起動時の値も受け取るが、実際の挙動は isLinksEnabled() を優先する
-  const { enableLinks: initialEnableLinks = false } = options;
+  const {
+    enableLinks: initialEnableLinks = false,
+    contributorsMap = {}, // ★BaseLayoutから渡される
+  } = options;
 
   return (p) => {
     const particles = [];
@@ -175,8 +184,9 @@ export function createKolloidSketch(options = {}) {
         this.x = p.random(p.width);
         this.y = p.random(p.height);
 
-        const touch = isTouchDevice();
-        this.r = touch ? p.random(16, 46) : p.random(10, 40);
+        this.r = isTouchDevice()
+          ? p.random(16, 46)
+          : p.random(10, 40);
 
         this.vx = p.random(-0.3, 0.3);
         this.vy = p.random(-0.3, 0.3);
@@ -224,10 +234,7 @@ export function createKolloidSketch(options = {}) {
       hitTest(mx, my) {
         const dx = mx - this.x;
         const dy = my - this.y;
-
-        // タッチ端末は当たり判定を広げる（指サイズ対策）
-        const extra = isTouchDevice() ? 18 : 0;
-
+        const extra = isTouchDevice() ? 18 : 0; // 指対策
         const rr = this.r + extra;
         return dx * dx + dy * dy <= rr * rr;
       }
@@ -246,12 +253,12 @@ export function createKolloidSketch(options = {}) {
 
           if (dist === 0) dist = 0.01;
 
-          // ★どちらかが frozen の場合は、動かす側に寄せて解消
           if (dist < minDist) {
             const overlap = (minDist - dist) / 2;
             const ux = dx / dist;
             const uy = dy / dist;
 
+            // ★ frozen を優先（動く側に寄せる）
             if (a.frozen && !b.frozen) {
               b.x += ux * overlap;
               b.y += uy * overlap;
@@ -282,9 +289,7 @@ export function createKolloidSketch(options = {}) {
       hovered = null;
 
       const count = targetCount();
-      for (let i = 0; i < count; i++) {
-        particles.push(new Particle(null));
-      }
+      for (let i = 0; i < count; i++) particles.push(new Particle(null));
     }
 
     function rebuildDataParticles() {
@@ -302,9 +307,24 @@ export function createKolloidSketch(options = {}) {
       for (const it of selectedItems) particles.push(new Particle(it));
     }
 
+    function hitParticle(mx, my) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        if (particles[i].hitTest(mx, my)) return particles[i];
+      }
+      return null;
+    }
+
+    function clearSelection() {
+      if (selected) selected.frozen = false;
+      selected = null;
+      hovered = null;
+    }
+
     // PC用：マウス位置付近にツールチップ
     function drawTooltip(it) {
       if (!it) return;
+
+      const displayName = getContributorDisplayName(it.contributor, contributorsMap);
 
       p.push();
       p.textAlign(p.LEFT, p.TOP);
@@ -312,7 +332,7 @@ export function createKolloidSketch(options = {}) {
 
       const pad = 10;
       const line1 = `タイトル：${it.title ?? ""}`;
-      const line2 = `制作者：${it.contributor ?? ""}`;
+      const line2 = `制作者：${displayName}`;
       const line3 = `ジャンル：${it.genre ?? ""}`;
 
       const w =
@@ -344,6 +364,8 @@ export function createKolloidSketch(options = {}) {
     function drawInfoPanel(it) {
       if (!it) return;
 
+      const displayName = getContributorDisplayName(it.contributor, contributorsMap);
+
       const pad = 16;
       const h = 126;
       const x = 12;
@@ -363,7 +385,7 @@ export function createKolloidSketch(options = {}) {
 
       p.fill(80);
       p.textSize(12);
-      p.text(`制作者：${it.contributor ?? ""}`, x + pad, y + pad + 30);
+      p.text(`制作者：${displayName}`, x + pad, y + pad + 30);
       p.text(`ジャンル：${it.genre ?? ""}`, x + pad, y + pad + 50);
 
       p.fill(120);
@@ -371,19 +393,6 @@ export function createKolloidSketch(options = {}) {
       p.text("もう一度タップで開く／空白タップで閉じる", x + pad, y + h - 28);
 
       p.pop();
-    }
-
-    function hitParticle(mx, my) {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        if (particles[i].hitTest(mx, my)) return particles[i];
-      }
-      return null;
-    }
-
-    function clearSelection() {
-      if (selected) selected.frozen = false;
-      selected = null;
-      hovered = null;
     }
 
     p.setup = () => {
@@ -410,8 +419,6 @@ export function createKolloidSketch(options = {}) {
 
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
-
-      // 形だけは維持
       if (initialEnableLinks) rebuildDataParticles();
       else buildDummyParticles();
     };
@@ -420,23 +427,17 @@ export function createKolloidSketch(options = {}) {
     p.mouseMoved = () => {
       if (isTouchDevice()) return;
 
-      // ★毎回判定（About/Statement では確実に無効化）
       if (!isLinksEnabled()) {
         hovered = null;
         p.cursor("default");
         return;
       }
 
-      // 選択中（スマホ用）をPCで使うことはないが、一応干渉避け
-      hovered = null;
-
-      const hit = hitParticle(p.mouseX, p.mouseY);
-      hovered = hit;
-
+      hovered = hitParticle(p.mouseX, p.mouseY);
       p.cursor(hovered?.item?.link ? "pointer" : "default");
     };
 
-    // PC：クリックで開く（スマホは touchStarted で制御）
+    // PC：クリックで開く
     p.mouseClicked = () => {
       if (isTouchDevice()) return;
       if (!isLinksEnabled()) return;
@@ -447,10 +448,8 @@ export function createKolloidSketch(options = {}) {
 
     // スマホ：タップで「停止＋情報表示」、再タップで開く
     p.touchStarted = () => {
-      // 画面スクロールを邪魔しないため、リンクOFFなら何もしない
       if (!isLinksEnabled()) return true;
 
-      // タップ地点（touches[0]）で判定
       const t = p.touches && p.touches[0];
       const mx = t ? t.x : p.mouseX;
       const my = t ? t.y : p.mouseY;
@@ -463,7 +462,7 @@ export function createKolloidSketch(options = {}) {
         return true;
       }
 
-      // 1回目タップ：その粒子を停止して情報表示（遷移しない）
+      // 1回目タップ：停止して情報表示（遷移しない）
       if (selected !== hit) {
         clearSelection();
         selected = hit;

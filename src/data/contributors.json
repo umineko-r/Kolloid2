@@ -6,6 +6,10 @@
       "instagram": "https://www.instagram.com/umineko_soratob/",
       "youtube": "https://www.youtube.com/@songs_of_umineko",
       "note": "https://note.com/umineko_note"
-    }
+    },
+    "feed": [
+      { "siteType": "youtube", "genre": "音楽", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC3AicuBvGDbWmmnOuBg9u_Q" },
+      { "siteType": "note",   "genre": "文章", "url": "https://note.com/umineko_note/rss" }
+    ]
   }
 }
